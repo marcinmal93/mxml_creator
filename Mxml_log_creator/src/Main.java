@@ -77,6 +77,29 @@ public class Main {
 	}
 	
 	
+	// funkcja czytaj¹ca wiersz z pliku .xls i tworz¹ca wpis AuditTrialEntry
+	private static AuditTrialEntry createAuditTrialEntry(HSSFRow inputRow) throws ParseException{
+		
+		HSSFCell cellTime;	
+		
+		String workflowModelEl1 = inputRow.getCell((short)2).toString();
+		System.out.print(", cell 3: "+workflowModelEl1);
+		String eventTypeString1 = inputRow.getCell((short)3).toString();
+		System.out.print(", cell 4: "+eventTypeString1);
+		eventTypeString1.replaceAll("\\s+","");
+		// timestamp
+		cellTime = inputRow.getCell((short)4);
+		String timestamptTime1String = cellTime.toString();			            	
+		String validTimestamp1 = transformDate(timestamptTime1String);
+		System.out.print(", cell 5: "+validTimestamp1);
+		// tworzenie obiektu AuditTrialEntry
+		AuditTrialEntry auditTrialEntry1 = new AuditTrialEntry(workflowModelEl1, eventTypeString1, validTimestamp1, "");
+		System.out.println("");
+		return auditTrialEntry1;
+		
+	}
+	
+	
 	// funkcja czytaj¹ca plik .xls
 	private static ProcessLog readXlsFile (String xlsFilePath){
 		
@@ -92,26 +115,11 @@ public class Main {
 		    HSSFSheet sheet = wb.getSheetAt(0);
 		    HSSFRow row;
 		    HSSFCell cell;
-		    HSSFCell cellTime;	
-		    HSSFCell cellDate;
 		    
-		    DataFormatter dataFormatter1 = new DataFormatter();
 		    
-
-		    int rows; // No of rows
+		    int rows;
 		    rows = sheet.getPhysicalNumberOfRows();
-
-		    int cols = 0; // No of columns
-		    int tmp = 0;
-
-		    // This trick ensures that we get the data properly even if it doesn't start from first few rows
-		    for(int i = 0; i < 10 || i < rows; i++) {
-		        row = sheet.getRow(i);
-		        if(row != null) {
-		            tmp = sheet.getRow(i).getPhysicalNumberOfCells();
-		            if(tmp > cols) cols = tmp;
-		        }
-		    }
+		    
 
 		    // czytanie skoroszytu po rekordzie
 		    for(int r = 3; r < rows; r++) {
@@ -127,41 +135,16 @@ public class Main {
 		            	
 		            	if(processInstancesListElIndex >= 0){
 		            		// dodawanie wpisu do istniej¹cej instancji procesu w logu
-		            		// poni¿ej s¹ poszczególne pola wpisu (Audit Trial Entry)
-		            		String workflowModelEl1 = row.getCell((short)2).toString();
-		            		System.out.print(", cell 3: "+workflowModelEl1);
-		            		String eventTypeString1 = row.getCell((short)3).toString();
-		            		System.out.print(", cell 4: "+eventTypeString1);
-		            		eventTypeString1.replaceAll("\\s+","");
-		            		// timestamp
-		            		cellTime = row.getCell((short)4);
-		            		String timestamptTime1String = cellTime.toString();			            	
-		            		String validTimestamp1 = transformDate(timestamptTime1String);
-		            		System.out.print(", cell 5: "+validTimestamp1);
-		            		// tworzenie obiektu AuditTrialEntry
-		            		auditTrialEntry1 = new AuditTrialEntry(workflowModelEl1, eventTypeString1, validTimestamp1, "");
-		            		System.out.println("");
+		            		// poni¿ej s¹ poszczególne pola wpisu (Audit Trial Entry)		            		
+		            		auditTrialEntry1 = createAuditTrialEntry(row);
 		            		
 		            		processInstance1 = processLog1.instances.get(processInstancesListElIndex);		         
 		            		processInstance1.auditTrialEntries.add(auditTrialEntry1);
-		            		processLog1.instances.set(processInstancesListElIndex, processInstance1);
-		            		
+		            		processLog1.instances.set(processInstancesListElIndex, processInstance1);		            		
 		            	}else{
 		            		// jeszcze nie ma takiej instacji procesu w logu, dodawanie nowej instancji do logu
-		            		// poni¿ej s¹ poszczególne pola wpisu (Audit Trial Entry)
-		            		String workflowModelEl1 = row.getCell((short)2).toString();
-		            		System.out.print(", cell 3: "+workflowModelEl1);
-		            		String eventTypeString1 = row.getCell((short)3).toString();
-		            		System.out.print(", cell 4: "+eventTypeString1);
-		            		eventTypeString1.replaceAll("\\s+","");
-		            		// timestamp		            		
-		            		cellTime = row.getCell((short)4);
-		            		String timestamptTime1String = cellTime.toString();			            	
-		            		String validTimestamp1 = transformDate(timestamptTime1String);
-		            		System.out.print(", cell 5: "+validTimestamp1);
-		            		// tworzenie obiektu AuditTrialEntry
-		            		auditTrialEntry1 = new AuditTrialEntry(workflowModelEl1, eventTypeString1, validTimestamp1, "");
-		            		System.out.println("");
+		            		// poni¿ej s¹ poszczególne pola wpisu (Audit Trial Entry)		            		
+		            		auditTrialEntry1 = createAuditTrialEntry(row);
 		            		
 		            		processInstance1 = new ProcessInstance(tempInstanceId);
 		            		processInstance1.auditTrialEntries.add(auditTrialEntry1);
@@ -170,25 +153,52 @@ public class Main {
 		            }
 		        }
 		    }
+		    wb.close();
 		} catch(Exception ioe) {
 		    ioe.printStackTrace();
 		}
 		return processLog1;
 	}
 
-
-
+	
+	// funcja tworz¹ca element w pliku xml
+	private static Element createXmlAuditTrialEntrElement (AuditTrialEntry inputAudTrialEntry, Document doc){
+		
+		Element auditTrialEntrElement1;
+		
+		// Elementy wpisu AuditTrialEntry 
+        Element audTrialWorkFlMdlElemet;
+        Element audTrialEventTypeElement;
+        Element audTrialTimestampElement;
+        Element audTrialOriginatorElement;
+		
+		// poszczególne pola wpisu 
+    	auditTrialEntrElement1 = doc.createElement("AuditTrailEntry");
+    	audTrialWorkFlMdlElemet = doc.createElement("WorkflowModelElement");
+    	audTrialWorkFlMdlElemet.appendChild(doc.createTextNode(inputAudTrialEntry.getWorkFlModlElement()));
+    	audTrialEventTypeElement = doc.createElement("EventType");
+    	audTrialEventTypeElement.appendChild(doc.createTextNode(inputAudTrialEntry.getEventType()));
+    	audTrialTimestampElement = doc.createElement("Timestamp");
+    	audTrialTimestampElement.appendChild(doc.createTextNode(inputAudTrialEntry.getTimestamp()));
+    	audTrialOriginatorElement = doc.createElement("Originator");
+    	audTrialOriginatorElement.appendChild(doc.createTextNode(inputAudTrialEntry.getOriginator()));
+    	
+    	auditTrialEntrElement1.appendChild(audTrialWorkFlMdlElemet);
+    	auditTrialEntrElement1.appendChild(audTrialEventTypeElement);
+    	auditTrialEntrElement1.appendChild(audTrialTimestampElement);
+    	auditTrialEntrElement1.appendChild(audTrialOriginatorElement);
+    	
+		return auditTrialEntrElement1;
+		
+	}
 	
 	
 	// funkcja tworz¹ca mXMLa
 	private static void buildXmlDocument(ProcessLog inputProcessLog1,  String sourceFilePath){
 		
 		try {
-
 	        DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
-	        DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-	        
-	        DOMImplementationLS ls = (DOMImplementationLS)DOMImplementationRegistry.newInstance().getDOMImplementation("LS");
+	        DocumentBuilder docBuilder = docFactory.newDocumentBuilder();	        	        
 
 	        // root elements
 	        Document doc = docBuilder.newDocument();
@@ -203,11 +213,7 @@ public class Main {
 	        Element instanceElement1;
 	        Element auditTrialEntrElement1;
 	        
-	        // Elementy wpisu AuditTrialEntry 
-	        Element audTrialWorkFlMdlElemet;
-	        Element audTrialEventTypeElement;
-	        Element audTrialTimestampElement;
-	        Element audTrialOriginatorElement;
+	        
 	        
 	        // dodawanie instancji 
 			for(ProcessInstance procInst1 : inputProcessLog1.instances){
@@ -218,43 +224,21 @@ public class Main {
 		        
 		        // dodawanie wpisów do instancji 
 		        for(AuditTrialEntry audTrialEntry1 : procInst1.auditTrialEntries){
-		        	
-		        	// poszczególne pola wpisu 
-		        	auditTrialEntrElement1 = doc.createElement("AuditTrailEntry");
-		        	audTrialWorkFlMdlElemet = doc.createElement("WorkflowModelElement");
-		        	audTrialWorkFlMdlElemet.appendChild(doc.createTextNode(audTrialEntry1.getWorkFlModlElement()));
-		        	audTrialEventTypeElement = doc.createElement("EventType");
-		        	audTrialEventTypeElement.appendChild(doc.createTextNode(audTrialEntry1.getEventType()));
-		        	audTrialTimestampElement = doc.createElement("Timestamp");
-		        	audTrialTimestampElement.appendChild(doc.createTextNode(audTrialEntry1.getTimestamp()));
-		        	audTrialOriginatorElement = doc.createElement("Originator");
-		        	audTrialOriginatorElement.appendChild(doc.createTextNode(audTrialEntry1.getOriginator()));
-		        	
-		        	auditTrialEntrElement1.appendChild(audTrialWorkFlMdlElemet);
-		        	auditTrialEntrElement1.appendChild(audTrialEventTypeElement);
-		        	auditTrialEntrElement1.appendChild(audTrialTimestampElement);
-		        	auditTrialEntrElement1.appendChild(audTrialOriginatorElement);
-		        	
+		        	//funkcja tworz¹ca wpis
+		        	auditTrialEntrElement1 = createXmlAuditTrialEntrElement(audTrialEntry1, doc);	        			    
 		        	instanceElement1.appendChild(auditTrialEntrElement1);
 		        }
 		        
 		        rootElement.appendChild(instanceElement1);
 	        }
-			
-	        // Creates a LSSerializer object and saves to file.
-	        LSSerializer serializer = ls.createLSSerializer();
-	        serializer.getDomConfig().setParameter("format-pretty-print", true);
-	        LSOutput output = ls.createLSOutput();
-	        OutputStream ostream = new FileOutputStream(sourceFilePath);
-	        output.setByteStream(ostream);        
-	        serializer.write(doc, output);
-
-	        System.out.println("File saved!");
-		
+			saveXMLtoFile(sourceFilePath, doc);
+	        
 		} catch (ParserConfigurationException pce) {
 	        pce.printStackTrace();
-		}
-		catch (ClassNotFoundException e) {
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InstantiationException e) {
@@ -266,11 +250,25 @@ public class Main {
 		} catch (ClassCastException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 		
+		
+	}
+	
+	//funkcja zapisuj¹ca plik xml
+	private static void saveXMLtoFile(String sourceFilePath, Document doc) throws FileNotFoundException, ClassNotFoundException, InstantiationException, IllegalAccessException, ClassCastException{
+		
+		DOMImplementationLS ls = (DOMImplementationLS)DOMImplementationRegistry.newInstance().getDOMImplementation("LS");
+		
+		// Creates a LSSerializer object and saves to file.
+        LSSerializer serializer = ls.createLSSerializer();
+        serializer.getDomConfig().setParameter("format-pretty-print", true);
+        LSOutput output = ls.createLSOutput();
+        OutputStream ostream = new FileOutputStream(sourceFilePath);
+        output.setByteStream(ostream);        
+        serializer.write(doc, output);
+
+        System.out.println("File saved!");
 		
 	}
 	
